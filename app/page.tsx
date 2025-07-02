@@ -1,103 +1,206 @@
-import Image from "next/image";
+'use client'; 
 
-export default function Home() {
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ArrowRight, TrendingUp, Users, DollarSign, Calendar, ChevronDown } from 'lucide-react';
+
+// --- Type Definitions for our data structure ---
+interface DashboardData {
+  mainMetrics: {
+    totalRevenue: number;
+    revenueChange: number;
+    activeUsers: number;
+    usersChange: number;
+    avgMonthlyRevenue: number;
+    avgChange: number;
+  };
+  monthlyRevenueData: { name: string; revenue: number }[];
+  revenueByCategoryData: { name: string; value: number; color: string }[];
+  recentTransactions: { id: string; company: string; amount: number; type: 'inflow' | 'outflow' }[];
+}
+
+// --- Helper Components (with TypeScript types) ---
+type MetricCardProps = {
+  title: string;
+  value: number;
+  change: number;
+  icon: React.ReactNode;
+  prefix?: string;
+  suffix?: string;
+};
+
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, icon, prefix = '', suffix = '' }) => {
+  const isPositive = change >= 0;
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-lg">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-gray-400 text-lg">{title}</span>
+        {icon}
+      </div>
+      <p className="text-4xl font-bold text-white mb-2">{prefix}{value.toLocaleString()}{suffix}</p>
+      <div className={`flex items-center text-sm ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <TrendingUp className={`w-4 h-4 mr-1 ${!isPositive && 'transform rotate-180'}`} />
+        <span>{Math.abs(change)}% לעומת תקופה קודמת</span>
+      </div>
+    </div>
+  );
+};
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+type ChartCardProps = {
+  title: string;
+  children: React.ReactNode;
+};
+
+const ChartCard: React.FC<ChartCardProps> = ({ title, children }) => (
+  <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-lg h-full flex flex-col">
+    <h3 className="text-xl font-semibold text-white mb-4">{title}</h3>
+    <div className="flex-grow">
+      {children}
+    </div>
+  </div>
+);
+
+// --- Main App Component ---
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // This code runs only on the client side, after the component mounts
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId');
+
+    const fetchDataForUser = async (id: string) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await fetch(`http://localhost:3000/api/dashboard/${id}`, {
+          headers: {
+            'x-api-key': 'YOUR_SUPER_SECRET_API_KEY'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `שגיאת רשת: ${response.statusText}`);
+        }
+
+        const result: DashboardData = await response.json();
+        setData(result);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (userId) {
+      fetchDataForUser(userId);
+    } else {
+        setError("מזהה לקוח לא נמצא בכתובת. לא ניתן לטעון נתונים.");
+        setLoading(false);
+    }
+
+  }, []); // The empty array ensures this effect runs only once on mount
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">טוען נתונים עבור הלקוח...</div>;
+  }
+
+  if (error) {
+    return <div className="min-h-screen bg-gray-900 text-red-500 flex items-center justify-center text-2xl text-center p-8">שגיאה: {error}</div>;
+  }
+
+  if (!data) {
+    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">לא נמצאו נתונים עבור לקוח זה.</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white font-sans p-4 sm:p-6 lg:p-8">
+      <div 
+        className="absolute inset-0 z-0 opacity-20"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 50% 0, #38bdf8 0%, transparent 40%), radial-gradient(circle at 100% 100%, #8b5cf6 0%, transparent 35%)',
+        }}
+      />
+      <div className="relative z-10">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold">סקירה כללית</h1>
+            <p className="text-gray-400 mt-1">ברוך הבא, זהו סיכום הפעילות העסקית שלך.</p>
+          </div>
+          <a 
+            href={`/ai.html?from_dashboard=true`} 
+            className="bg-sky-500 hover:bg-sky-600 transition-all duration-300 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-sky-500/20 mt-4 sm:mt-0"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
+            <span>מעבר לתזרים המלא</span>
+            <ArrowRight className="w-4 h-4" />
           </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </header>
+
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <MetricCard title="סה״כ הכנסות" value={data.mainMetrics.totalRevenue} change={data.mainMetrics.revenueChange} prefix="₪" icon={<DollarSign className="w-6 h-6 text-gray-500"/>} />
+            <MetricCard title="תנועות" value={data.mainMetrics.activeUsers} change={data.mainMetrics.usersChange} icon={<Users className="w-6 h-6 text-gray-500"/>} />
+            <MetricCard title="הכנסה ממוצעת (חודשי)" value={data.mainMetrics.avgMonthlyRevenue} change={data.mainMetrics.avgChange} prefix="₪" icon={<TrendingUp className="w-6 h-6 text-gray-500"/>} />
+          </div>
+
+          <div className="lg:col-span-2">
+            <ChartCard title="הכנסות לפי חודש">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.monthlyRevenueData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af' }} />
+                  <YAxis tick={{ fill: '#9ca3af' }} tickFormatter={(value) => `₪${value/1000}k`} />
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.75rem' }} labelStyle={{ color: '#f3f4f6' }} />
+                  <Bar dataKey="revenue" name="הכנסה" fill="url(#colorUv)" />
+                   <defs>
+                    <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+          
+          <div>
+            <ChartCard title="הכנסות לפי קטגוריה">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={data.revenueByCategoryData} cx="50%" cy="50%" labelLine={false} outerRadius={100} innerRadius={60} fill="#8884d8" dataKey="value" paddingAngle={5}>
+                    {data.revenueByCategoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.75rem' }} />
+                  <Legend iconType="circle" formatter={(value) => <span className="text-gray-300">{value}</span>}/>
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+
+          <div className="lg:col-span-3">
+             <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-lg">
+                <h3 className="text-xl font-semibold text-white mb-4">תנועות אחרונות</h3>
+                <div className="flow-root">
+                  <ul role="list" className="divide-y divide-white/10">
+                    {data.recentTransactions.map((tx) => (
+                      <li key={tx.id} className="py-4 flex items-center justify-between">
+                        <p className="text-md font-medium text-gray-200">{tx.company}</p>
+                        <p className={`text-md font-semibold ${tx.type === 'inflow' ? 'text-green-400' : 'text-red-400'}`}>
+                          {tx.type === 'inflow' ? '+' : '-'}₪{Math.abs(tx.amount).toLocaleString()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+             </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
