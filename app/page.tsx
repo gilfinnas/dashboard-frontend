@@ -67,7 +67,6 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // This code runs only on the client side, after the component mounts
     const params = new URLSearchParams(window.location.search);
     const userId = params.get('userId');
 
@@ -75,17 +74,17 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`http://localhost:3000/api/dashboard/${id}`, {
-          headers: {
-            'x-api-key': 'YOUR_SUPER_SECRET_API_KEY'
-          }
+        // This URL now points to your live server on Render
+        const apiUrl = `https://dashboard-backend-7vgh.onrender.com/api/dashboard/${id}`; 
+        
+        const response = await fetch(apiUrl, {
+          headers: { 'x-api-key': 'YOUR_SUPER_SECRET_API_KEY' } // Make sure to use the same key you set in Render
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || `שגיאת רשת: ${response.statusText}`);
+          throw new Error(errorData.error || `שגיאת רשת`);
         }
-
         const result: DashboardData = await response.json();
         setData(result);
       } catch (err: any) {
@@ -98,42 +97,25 @@ export default function DashboardPage() {
     if (userId) {
       fetchDataForUser(userId);
     } else {
-        setError("מזהה לקוח לא נמצא בכתובת. לא ניתן לטעון נתונים.");
-        setLoading(false);
+      setError("מזהה לקוח לא נמצא בכתובת.");
+      setLoading(false);
     }
+  }, []);
 
-  }, []); // The empty array ensures this effect runs only once on mount
-
-  if (loading) {
-    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">טוען נתונים עבור הלקוח...</div>;
-  }
-
-  if (error) {
-    return <div className="min-h-screen bg-gray-900 text-red-500 flex items-center justify-center text-2xl text-center p-8">שגיאה: {error}</div>;
-  }
-
-  if (!data) {
-    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">לא נמצאו נתונים עבור לקוח זה.</div>;
-  }
+  if (loading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">טוען נתונים...</div>;
+  if (error) return <div className="min-h-screen bg-gray-900 text-red-500 flex items-center justify-center text-2xl p-8 text-center">שגיאה: {error}</div>;
+  if (!data) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">לא נמצאו נתונים.</div>;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans p-4 sm:p-6 lg:p-8">
-      <div 
-        className="absolute inset-0 z-0 opacity-20"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 50% 0, #38bdf8 0%, transparent 40%), radial-gradient(circle at 100% 100%, #8b5cf6 0%, transparent 35%)',
-        }}
-      />
+      <div className="absolute inset-0 z-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, #38bdf8 0%, transparent 40%), radial-gradient(circle at 100% 100%, #8b5cf6 0%, transparent 35%)' }} />
       <div className="relative z-10">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold">סקירה כללית</h1>
             <p className="text-gray-400 mt-1">ברוך הבא, זהו סיכום הפעילות העסקית שלך.</p>
           </div>
-          <a 
-            href={`/ai.html?from_dashboard=true`} 
-            className="bg-sky-500 hover:bg-sky-600 transition-all duration-300 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-sky-500/20 mt-4 sm:mt-0"
-          >
+          <a href={`https://gilfinnas.com/ai.html?from_dashboard=true`} className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2 shadow-lg mt-4 sm:mt-0">
             <span>מעבר לתזרים המלא</span>
             <ArrowRight className="w-4 h-4" />
           </a>
@@ -145,7 +127,6 @@ export default function DashboardPage() {
             <MetricCard title="תנועות" value={data.mainMetrics.activeUsers} change={data.mainMetrics.usersChange} icon={<Users className="w-6 h-6 text-gray-500"/>} />
             <MetricCard title="הכנסה ממוצעת (חודשי)" value={data.mainMetrics.avgMonthlyRevenue} change={data.mainMetrics.avgChange} prefix="₪" icon={<TrendingUp className="w-6 h-6 text-gray-500"/>} />
           </div>
-
           <div className="lg:col-span-2">
             <ChartCard title="הכנסות לפי חודש">
               <ResponsiveContainer width="100%" height={300}>
@@ -165,15 +146,12 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </ChartCard>
           </div>
-          
           <div>
             <ChartCard title="הכנסות לפי קטגוריה">
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie data={data.revenueByCategoryData} cx="50%" cy="50%" labelLine={false} outerRadius={100} innerRadius={60} fill="#8884d8" dataKey="value" paddingAngle={5}>
-                    {data.revenueByCategoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke={entry.color} />
-                    ))}
+                    {data.revenueByCategoryData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} stroke={entry.color} /> ))}
                   </Pie>
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.75rem' }} />
                   <Legend iconType="circle" formatter={(value) => <span className="text-gray-300">{value}</span>}/>
@@ -181,7 +159,6 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </ChartCard>
           </div>
-
           <div className="lg:col-span-3">
              <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-lg">
                 <h3 className="text-xl font-semibold text-white mb-4">תנועות אחרונות</h3>
