@@ -67,6 +67,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // This code runs only on the client side, after the component mounts
     const params = new URLSearchParams(window.location.search);
     const userId = params.get('userId');
 
