@@ -86,49 +86,70 @@ export default function DashboardPage() {
     const params = new URLSearchParams(window.location.search)
     const userId = params.get("userId")
 
-    console.log("Debug: userId from URL:", userId) // ADD THIS LINE
-    console.log("Debug: window.location.search:", window.location.search) // ADD THIS LINE
+    // --- START OF CHANGES: Added more detailed logging ---
+    console.log("Dashboard page loaded. Full URL query:", window.location.search);
+    console.log("Attempting to get 'userId' from URL. Found:", userId);
+    // --- END OF CHANGES ---
 
     const fetchDataForUser = async (id: string) => {
       try {
         setLoading(true)
         setError(null)
+        // This is the URL for your Render backend service
         const apiUrl = `https://dashboard-backend-7vgh.onrender.com/api/dashboard/${id}`
+        console.log("Fetching data from API URL:", apiUrl);
 
-        // קבלת ה-API Key ממשתנה הסביבה
+        // Get the API Key from environment variables
         const apiKey = process.env.NEXT_PUBLIC_API_KEY
         if (!apiKey) {
+          console.error("CRITICAL: NEXT_PUBLIC_API_KEY is not defined in Vercel environment variables.");
           throw new Error("API Key is not configured. Please set NEXT_PUBLIC_API_KEY environment variable.")
         }
+        
+        console.log("Using API Key starting with:", apiKey.substring(0, 4) + "...");
 
         const response = await fetch(apiUrl, {
           headers: {
-            // שימוש במשתנה ה-API Key
             "x-api-key": apiKey,
           },
         })
 
+        console.log("API Response Status:", response.status, response.statusText);
+
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || `שגיאת רשת`)
+          const errorText = await response.text(); // Get raw text to avoid JSON parsing errors
+          console.error("API Error Response Body:", errorText);
+          try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.error || `Error: ${response.status} ${response.statusText}`);
+          } catch (e) {
+            // If parsing fails, the error is not JSON
+            throw new Error(errorText || `Error: ${response.status} ${response.statusText}`);
+          }
         }
+        
         const result: DashboardData = await response.json()
+        console.log("Successfully fetched and parsed data:", result);
         setData(result)
       } catch (err: any) {
+        console.error("An error occurred during the fetch process:", err);
         setError(err.message)
       } finally {
         setLoading(false)
       }
     }
 
-    // בדיקה חזקה יותר למזהה המשתמש
+    // A more robust check for the user ID
     if (userId && userId !== "null" && userId !== "undefined") {
       fetchDataForUser(userId)
     } else {
-      setError("שגיאה: מזהה לקוח לא נמצא בכתובת. אנא ודא שאתה מתחבר דרך המערכת המרכזית (gilfinnas.com).")
+      // This error is shown if the userId is missing from the URL
+      const errorMessage = "שגיאה: מזהה לקוח לא נמצא בכתובת. אנא ודא שאתה מתחבר דרך המערכת המרכזית (gilfinnas.com)."
+      console.error(errorMessage);
+      setError(errorMessage)
       setLoading(false)
     }
-  }, [])
+  }, []) // Empty dependency array means this runs once on component mount
 
   if (loading)
     return (
