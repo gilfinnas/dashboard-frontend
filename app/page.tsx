@@ -107,7 +107,7 @@ export default function DashboardPage() {
 
         if (!response.ok) {
           const errorData = await response.json()
-          throw new new Error(errorData.error || `שגיאת רשת`)()
+          throw new Error(errorData.error || `שגיאת רשת`)
         }
         const result: DashboardData = await response.json()
         setData(result)
