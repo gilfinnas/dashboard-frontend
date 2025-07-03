@@ -86,6 +86,9 @@ export default function DashboardPage() {
     const params = new URLSearchParams(window.location.search)
     const userId = params.get("userId")
 
+    console.log("Debug: userId from URL:", userId) // ADD THIS LINE
+    console.log("Debug: window.location.search:", window.location.search) // ADD THIS LINE
+
     const fetchDataForUser = async (id: string) => {
       try {
         setLoading(true)
