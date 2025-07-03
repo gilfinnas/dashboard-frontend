@@ -75,11 +75,13 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        // This URL now points to your live server on Render
         const apiUrl = `https://dashboard-backend-7vgh.onrender.com/api/dashboard/${id}`; 
         
         const response = await fetch(apiUrl, {
-          headers: { 'x-api-key': 'YOUR_SUPER_SECRET_API_KEY' } // Make sure to use the same key you set in Render
+          headers: { 
+              // The API Key is now updated with the correct one you provided
+              'x-api-key': '@Lastdenver1' 
+            }
         });
 
         if (!response.ok) {
