@@ -51,7 +51,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="label font-bold text-cyan-300">{label}</p>
         {payload.map((pld: any) => (
           <p key={pld.dataKey} style={{ color: pld.color || pld.fill }}>
-            {`${pld.name}: ₪${pld.value.toLocaleString()}`}
+            {`${pld.name}: ₪${(pld.value || 0).toLocaleString()}`}
           </p>
         ))}
       </div>
@@ -121,16 +121,20 @@ export default function DashboardPage() {
     </div>
   )
 
-  if (!data || data.charts.monthlyComparison.length === 0) return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center text-xl text-center p-4">
-        <h2 className="text-3xl font-bold mb-4">אין מספיק נתונים</h2>
-        <p className="max-w-md">כדי להציג את הדשבורד הניהולי, יש להזין נתונים במערכת התזרים הראשית תחילה.</p>
-        <a href="https://gilfinnas.com/" className="mt-6 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg">
-        <span>חזרה למערכת התזרים</span>
-        <ArrowLeft className="w-5 h-5" />
-      </a>
-    </div>
-  )
+  // --- START OF FIX: Robust check for data before rendering ---
+  if (!data || !data.kpi || !data.charts || !data.charts.monthlyComparison) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center text-xl text-center p-4">
+          <h2 className="text-3xl font-bold mb-4">אין מספיק נתונים</h2>
+          <p className="max-w-md">כדי להציג את הדשבורד הניהולי, יש להזין נתונים במערכת התזרים הראשית תחילה.</p>
+          <a href="https://gilfinnas.com/" className="mt-6 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg">
+          <span>חזרה למערכת התזרים</span>
+          <ArrowLeft className="w-5 h-5" />
+        </a>
+      </div>
+    )
+  }
+  // --- END OF FIX ---
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-300 font-sans p-4 sm:p-6 lg:p-8" dir="rtl">
@@ -149,10 +153,10 @@ export default function DashboardPage() {
         <main className="grid grid-cols-12 gap-6">
           
           <div className="col-span-12 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-            <KpiCard title="רווח נקי (שנתי)" value={`₪${data.kpi.ytdNetProfit.toLocaleString()}`} icon={<TrendingUp size={24} />} color="bg-green-500/20 text-green-400" />
-            <KpiCard title="עלות משכורות (חודשי)" value={`₪${data.kpi.monthlySalaries.toLocaleString()}`} icon={<Users size={24} />} color="bg-amber-500/20 text-amber-400" />
-            <KpiCard title="החזרי הלוואות (חודשי)" value={`₪${data.kpi.monthlyLoans.toLocaleString()}`} icon={<Landmark size={24} />} color="bg-teal-500/20 text-teal-400" />
-            <KpiCard title="תשלום לספקים (חודשי)" value={`₪${data.kpi.monthlySuppliers.toLocaleString()}`} icon={<Truck size={24} />} color="bg-blue-500/20 text-blue-400" />
+            <KpiCard title="רווח נקי (שנתי)" value={`₪${(data.kpi.ytdNetProfit || 0).toLocaleString()}`} icon={<TrendingUp size={24} />} color="bg-green-500/20 text-green-400" />
+            <KpiCard title="עלות משכורות (חודשי)" value={`₪${(data.kpi.monthlySalaries || 0).toLocaleString()}`} icon={<Users size={24} />} color="bg-amber-500/20 text-amber-400" />
+            <KpiCard title="החזרי הלוואות (חודשי)" value={`₪${(data.kpi.monthlyLoans || 0).toLocaleString()}`} icon={<Landmark size={24} />} color="bg-teal-500/20 text-teal-400" />
+            <KpiCard title="תשלום לספקים (חודשי)" value={`₪${(data.kpi.monthlySuppliers || 0).toLocaleString()}`} icon={<Truck size={24} />} color="bg-blue-500/20 text-blue-400" />
           </div>
 
           <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-6">
@@ -172,7 +176,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <ChartCard title="מגמת הוצאות לפי סוג">
                     <ResponsiveContainer width="100%" height={250}>
-                        <AreaChart data={data.charts.expenseTrend} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                        <AreaChart data={data.charts.expenseTrend || []} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
                              <XAxis dataKey="name" tick={{ fill: "#94a3b8" }} fontSize={12}/>
                              <YAxis tick={{ fill: "#94a3b8" }} fontSize={12} tickFormatter={(value) => `₪${value / 1000}k`}/>
@@ -187,8 +191,8 @@ export default function DashboardPage() {
                  <ChartCard title="הרכב הוצאות (חודש נוכחי)">
                     <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                            <Pie data={data.charts.monthlyExpenseComposition} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={3}>
-                            {data.charts.monthlyExpenseComposition.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke={'#1e293b'} />)}
+                            <Pie data={data.charts.monthlyExpenseComposition || []} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={3}>
+                            {(data.charts.monthlyExpenseComposition || []).map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke={'#1e293b'} />)}
                             </Pie>
                             <Tooltip content={<CustomTooltip />} />
                             <Legend iconType="circle" layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', lineHeight: '20px' }}/>
