@@ -60,7 +60,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const EXPENSE_TREND_COLORS = { "ספקים": "#3b82f6", "הוצאות קבועות": "#8b5cf6", "הוצאות משתנות": "#ef4444", "משכורות ומיסים": "#f97316", "הלוואות": "#14b8a6", "בלת'מ": "#64748b" };
+const EXPENSE_TREND_COLORS: { [key: string]: string } = { "ספקים": "#3b82f6", "הוצאות קבועות": "#8b5cf6", "הוצאות משתנות": "#ef4444", "משכורות ומיסים": "#f97316", "הלוואות": "#14b8a6", "בלת'מ": "#64748b" };
 
 // --- Main Component ---
 export default function DashboardPage() {
