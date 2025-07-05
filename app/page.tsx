@@ -124,7 +124,7 @@ export default function DashboardPage() {
   )
 
   // --- No Data State (Robust Check) ---
-  const hasDataForCharts = data && data.charts && data.charts.monthlyComparison && data.charts.monthlyComparison.length > 0;
+  const hasDataForCharts = data && data.charts && Array.isArray(data.charts.monthlyComparison) && data.charts.monthlyComparison.length > 0;
   if (!hasDataForCharts) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center text-xl text-center p-4">
