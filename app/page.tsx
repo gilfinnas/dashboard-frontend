@@ -7,34 +7,33 @@ import {
   PieChart, Pie, Cell,
   AreaChart, Area,
 } from "recharts"
-import { ArrowLeft, BarChart2, Briefcase, DollarSign, MinusCircle, PlusCircle, TrendingUp } from "lucide-react"
+import { ArrowLeft, Landmark, TrendingUp, Truck, Users } from "lucide-react"
 
 // --- Type Definitions ---
 interface DashboardData {
   kpi: {
     ytdNetProfit: number
-    ytdIncome: number
-    ytdExpense: number
-    totalTransactions: number
+    monthlySalaries: number
+    monthlyLoans: number
+    monthlySuppliers: number
   }
   charts: {
     monthlyComparison: { name: string; הכנסות: number; הוצאות: number }[]
-    expenseComposition: { name: string; value: number; color: string }[]
-    netProfitTrend: { name: string; "רווח נקי": number; "רווח מצטבר": number }[]
+    monthlyExpenseComposition: { name: string; value: number; color: string }[]
+    expenseTrend: { name: string; [key: string]: number | string }[]
   }
-  recentTransactions: { id: string; description: string; amount: number; type: "inflow" | "outflow", date: string }[]
 }
 
 // --- Helper Components ---
 const KpiCard: React.FC<{ title: string; value: string; icon: React.ReactNode; color: string }> = ({ title, value, icon, color }) => (
-  <div className="bg-slate-800/60 p-5 rounded-xl border border-slate-700 flex items-center gap-5">
-    <div className={`w-14 h-14 rounded-lg flex items-center justify-center ${color}`}>
-      {icon}
+  <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700 flex flex-col justify-between h-full">
+    <div className="flex justify-between items-start">
+      <p className="text-slate-400 text-sm font-medium">{title}</p>
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+        {icon}
+      </div>
     </div>
-    <div>
-      <p className="text-slate-400 text-sm">{title}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
-    </div>
+    <p className="text-3xl font-bold text-white mt-2">{value}</p>
   </div>
 )
 
@@ -60,6 +59,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
+
+const EXPENSE_TREND_COLORS = { "ספקים": "#3b82f6", "הוצאות קבועות": "#8b5cf6", "הוצאות משתנות": "#ef4444", "משכורות ומיסים": "#f97316", "הלוואות": "#14b8a6", "בלת'מ": "#64748b" };
 
 // --- Main Component ---
 export default function DashboardPage() {
@@ -97,7 +98,7 @@ export default function DashboardPage() {
     if (userId && userId !== "null" && userId !== "undefined") {
       fetchDataForUser(userId)
     } else {
-      setError("שגיאה: מזהה לקוח לא נמצא בכתובת. אנא ודא שאתה מתחבר דרך המערכת המרכזית.")
+      setError("שגיאה: מזהה לקוח לא נמצא בכתובת.")
       setLoading(false)
     }
   }, [])
@@ -120,8 +121,15 @@ export default function DashboardPage() {
     </div>
   )
 
-  if (!data) return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center text-xl">לא נמצאו נתונים להצגה.</div>
+  if (!data || data.charts.monthlyComparison.length === 0) return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center text-xl text-center p-4">
+        <h2 className="text-3xl font-bold mb-4">אין מספיק נתונים</h2>
+        <p className="max-w-md">כדי להציג את הדשבורד הניהולי, יש להזין נתונים במערכת התזרים הראשית תחילה.</p>
+        <a href="https://gilfinnas.com/" className="mt-6 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg">
+        <span>חזרה למערכת התזרים</span>
+        <ArrowLeft className="w-5 h-5" />
+      </a>
+    </div>
   )
 
   return (
@@ -139,83 +147,55 @@ export default function DashboardPage() {
         </header>
 
         <main className="grid grid-cols-12 gap-6">
-          {/* KPIs */}
-          <div className="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <KpiCard title="רווח נקי (שנתי)" value={`₪${data.kpi.ytdNetProfit.toLocaleString()}`} icon={<TrendingUp size={28} />} color="bg-green-500/20 text-green-400" />
-            <KpiCard title="סה״כ הכנסות (שנתי)" value={`₪${data.kpi.ytdIncome.toLocaleString()}`} icon={<DollarSign size={28} />} color="bg-cyan-500/20 text-cyan-400" />
-            <KpiCard title="סה״כ הוצאות (שנתי)" value={`₪${data.kpi.ytdExpense.toLocaleString()}`} icon={<Briefcase size={28} />} color="bg-amber-500/20 text-amber-400" />
-            <KpiCard title="סה״כ תנועות" value={data.kpi.totalTransactions.toLocaleString()} icon={<BarChart2 size={28} />} color="bg-indigo-500/20 text-indigo-400" />
+          
+          <div className="col-span-12 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
+            <KpiCard title="רווח נקי (שנתי)" value={`₪${data.kpi.ytdNetProfit.toLocaleString()}`} icon={<TrendingUp size={24} />} color="bg-green-500/20 text-green-400" />
+            <KpiCard title="עלות משכורות (חודשי)" value={`₪${data.kpi.monthlySalaries.toLocaleString()}`} icon={<Users size={24} />} color="bg-amber-500/20 text-amber-400" />
+            <KpiCard title="החזרי הלוואות (חודשי)" value={`₪${data.kpi.monthlyLoans.toLocaleString()}`} icon={<Landmark size={24} />} color="bg-teal-500/20 text-teal-400" />
+            <KpiCard title="תשלום לספקים (חודשי)" value={`₪${data.kpi.monthlySuppliers.toLocaleString()}`} icon={<Truck size={24} />} color="bg-blue-500/20 text-blue-400" />
           </div>
 
-          {/* Main Charts */}
-          <ChartCard title="הכנסות מול הוצאות" className="col-span-12 lg:col-span-8">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.charts.monthlyComparison} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
-                <XAxis dataKey="name" tick={{ fill: "#94a3b8" }} fontSize={12} />
-                <YAxis tick={{ fill: "#94a3b8" }} fontSize={12} tickFormatter={(value) => `₪${value / 1000}k`} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(14, 165, 233, 0.1)' }} />
-                <Legend wrapperStyle={{ color: '#e5e7eb', fontSize: '14px' }} />
-                <Bar dataKey="הכנסות" fill="#0ea5e9" name="הכנסות" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="הוצאות" fill="#f43f5e" name="הוצאות" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="הרכב הוצאות (שנתי)" className="col-span-12 lg:col-span-4">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={data.charts.expenseComposition} cx="50%" cy="50%" innerRadius={70} outerRadius={110} dataKey="value" paddingAngle={3}>
-                  {data.charts.expenseComposition.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke={'#1e293b'} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend iconType="circle" formatter={(value) => <span className="text-slate-300 text-sm">{value}</span>} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-          
-          {/* Trend Chart & Transactions */}
-          <ChartCard title="מגמת רווח נקי (6 חודשים)" className="col-span-12 lg:col-span-7">
-             <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={data.charts.netProfitTrend} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
-                    <defs>
-                        <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.7}/>
-                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
+          <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-6">
+            <ChartCard title="הכנסות מול הוצאות (6 חודשים)">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={data.charts.monthlyComparison} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
-                    <XAxis dataKey="name" tick={{ fill: "#94a3b8" }} fontSize={12}/>
-                    <YAxis tick={{ fill: "#94a3b8" }} fontSize={12} tickFormatter={(value) => `₪${value / 1000}k`}/>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="רווח נקי" stroke="#22c55e" fillOpacity={1} fill="url(#colorProfit)" />
-                </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <div className="col-span-12 lg:col-span-5 bg-slate-800/60 p-6 rounded-xl border border-slate-700">
-             <h3 className="text-lg font-semibold text-white mb-4">תנועות אחרונות</h3>
-             <div className="flow-root">
-                <ul role="list" className="-my-3 divide-y divide-slate-700">
-                  {data.recentTransactions.map((tx) => (
-                    <li key={tx.id} className="py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        {tx.type === 'inflow' 
-                          ? <PlusCircle className="w-5 h-5 text-green-500" /> 
-                          : <MinusCircle className="w-5 h-5 text-red-500" />
-                        }
-                        <div>
-                          <p className="text-sm font-medium text-slate-200 truncate">{tx.description}</p>
-                          <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString('he-IL')}</p>
-                        </div>
-                      </div>
-                      <p className={`text-sm font-bold whitespace-nowrap ${tx.type === "inflow" ? "text-green-400" : "text-red-400"}`}>
-                        {tx.type === "inflow" ? "+" : "-"}₪{Math.abs(tx.amount).toLocaleString()}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                    <XAxis dataKey="name" tick={{ fill: "#94a3b8" }} fontSize={12} />
+                    <YAxis tick={{ fill: "#94a3b8" }} fontSize={12} tickFormatter={(value) => `₪${value / 1000}k`} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(14, 165, 233, 0.1)' }} />
+                    <Legend wrapperStyle={{ color: '#e5e7eb', fontSize: '14px' }} />
+                    <Bar dataKey="הכנסות" fill="#0ea5e9" name="הכנסות" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="הוצאות" fill="#f43f5e" name="הוצאות" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+            </ChartCard>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 <ChartCard title="מגמת הוצאות לפי סוג">
+                    <ResponsiveContainer width="100%" height={250}>
+                        <AreaChart data={data.charts.expenseTrend} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                             <XAxis dataKey="name" tick={{ fill: "#94a3b8" }} fontSize={12}/>
+                             <YAxis tick={{ fill: "#94a3b8" }} fontSize={12} tickFormatter={(value) => `₪${value / 1000}k`}/>
+                             <Tooltip content={<CustomTooltip />} />
+                             <Legend wrapperStyle={{ color: '#e5e7eb', fontSize: '12px' }} />
+                             {Object.keys(EXPENSE_TREND_COLORS).map(key => (
+                                <Area key={key} type="monotone" dataKey={key} stackId="1" stroke={EXPENSE_TREND_COLORS[key]} fill={EXPENSE_TREND_COLORS[key]} fillOpacity={0.6} />
+                             ))}
+                        </AreaChart>
+                    </ResponsiveContainer>
+                 </ChartCard>
+                 <ChartCard title="הרכב הוצאות (חודש נוכחי)">
+                    <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                            <Pie data={data.charts.monthlyExpenseComposition} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={3}>
+                            {data.charts.monthlyExpenseComposition.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke={'#1e293b'} />)}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend iconType="circle" layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', lineHeight: '20px' }}/>
+                        </PieChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
           </div>
         </main>
       </div>
