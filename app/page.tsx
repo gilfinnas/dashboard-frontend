@@ -7,7 +7,7 @@ import {
   PieChart, Pie, Cell,
   AreaChart, Area,
 } from "recharts"
-import { ArrowLeft, Landmark, TrendingUp, Truck, Users } from "lucide-react"
+import { ArrowLeft, Calendar, Landmark, TrendingUp, Truck, Users } from "lucide-react"
 
 // --- Type Definitions ---
 interface DashboardData {
@@ -22,6 +22,11 @@ interface DashboardData {
     monthlyExpenseComposition: { name: string; value: number; color: string }[]
     expenseTrend: { name: string; [key: string]: number | string }[]
   }
+}
+
+interface ApiResponse {
+  dashboardData: DashboardData;
+  availableYears: string[];
 }
 
 // --- Helper Components ---
@@ -65,47 +70,100 @@ const EXPENSE_TREND_COLORS: { [key: string]: string } = { "ספקים": "#3b82f6
 // --- Main Component ---
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [availableYears, setAvailableYears] = useState<string[]>([])
+  const [selectedYear, setSelectedYear] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const userId = params.get("userId")
+  // Generic data fetching function
+  const fetchData = async (userId: string, year?: string) => {
+    setLoading(true);
+    setError(null);
+    
+    const yearQuery = year ? `?year=${year}` : '';
+    const apiUrl = `https://dashboard-backend-7vgh.onrender.com/api/dashboard/${userId}${yearQuery}`;
+    console.log(`Fetching from: ${apiUrl}`);
 
-    const fetchDataForUser = async (id: string) => {
-      try {
-        setLoading(true)
-        setError(null)
-        const apiUrl = `https://dashboard-backend-7vgh.onrender.com/api/dashboard/${id}`
-        const apiKey = process.env.NEXT_PUBLIC_API_KEY
-        if (!apiKey) throw new Error("API Key is not configured.")
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+      if (!apiKey) throw new Error("API Key is not configured.");
 
-        const response = await fetch(apiUrl, { headers: { "x-api-key": apiKey } })
-        if (!response.ok) {
+      const response = await fetch(apiUrl, { headers: { "x-api-key": apiKey } });
+      if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || `Error: ${response.status}`);
-        }
-        
-        const result: DashboardData = await response.json()
-        setData(result)
-      } catch (err: any) {
-        console.error("Fetch error:", err);
-        setError(err.message)
-      } finally {
-        setLoading(false)
       }
+      
+      const result: ApiResponse = await response.json();
+      setData(result.dashboardData);
+      return result; // Return the full result for the initial load
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effect for initial data load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("userId");
+
+    if (!userId || userId === "null" || userId === "undefined") {
+      setError("שגיאה: מזהה לקוח לא נמצא בכתובת.");
+      setLoading(false);
+      return;
     }
 
-    if (userId && userId !== "null" && userId !== "undefined") {
-      fetchDataForUser(userId)
-    } else {
-      setError("שגיאה: מזהה לקוח לא נמצא בכתובת.")
-      setLoading(false)
-    }
-  }, [])
+    const initialLoad = async () => {
+      const result = await fetchData(userId);
+      if (result && result.availableYears.length > 0) {
+        setAvailableYears(result.availableYears);
+        setSelectedYear(result.availableYears[0]);
+      } else if (result) {
+        setError("לא נמצאו נתונים עבור משתמש זה.");
+      }
+    };
 
-  // --- Loading and Error States ---
-  if (loading) return (
+    initialLoad();
+  }, []);
+
+  // Handler for year selection
+  const handleYearChange = (newYear: string) => {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("userId");
+    if (userId && newYear !== selectedYear) {
+      setSelectedYear(newYear);
+      fetchData(userId, newYear);
+    }
+  };
+
+  const YearSelector = () => (
+    <div className="relative">
+      <select
+        value={selectedYear}
+        onChange={(e) => handleYearChange(e.target.value)}
+        disabled={loading || availableYears.length <= 1}
+        className="bg-slate-700 border border-slate-600 text-white font-semibold rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 pr-4 py-2.5 appearance-none shadow-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {availableYears.length > 0 ? (
+            availableYears.map((year) => (
+              <option key={year} value={year}>
+                שנת {year}
+              </option>
+            ))
+        ) : (
+            <option>טוען...</option>
+        )}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+        <Calendar className="w-5 h-5 text-slate-400" />
+      </div>
+    </div>
+  );
+
+  if (loading && !data) return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center text-xl font-semibold">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
       <span className="mr-4">טוען דשבורד ניהולי...</span>
@@ -123,9 +181,7 @@ export default function DashboardPage() {
     </div>
   )
 
-  // --- No Data State (Robust Check) ---
-  const hasDataForCharts = data && data.charts && Array.isArray(data.charts.monthlyComparison) && data.charts.monthlyComparison.length > 0;
-  if (!hasDataForCharts) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center text-xl text-center p-4">
           <h2 className="text-3xl font-bold mb-4">אין מספיק נתונים</h2>
@@ -138,32 +194,34 @@ export default function DashboardPage() {
     )
   }
 
-  // --- Main Render ---
   return (
     <div className="min-h-screen bg-slate-900 text-slate-300 font-sans p-4 sm:p-6 lg:p-8" dir="rtl">
       <div className="relative z-10 max-w-screen-2xl mx-auto">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+        <header className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-white">תקציר מנהלים</h1>
             <p className="text-slate-400 mt-1">תמונת מצב פיננסית של העסק</p>
           </div>
-          <a href="https://gilfinnas.com/" className="mt-4 sm:mt-0 bg-slate-700 hover:bg-slate-600 text-white font-semibold px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg transition-colors duration-200">
-            <span>מעבר לתזרים המלא</span>
-            <ArrowLeft className="w-4 h-4" />
-          </a>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+            <YearSelector />
+            <a href="https://gilfinnas.com/" className="bg-slate-700 hover:bg-slate-600 text-white font-semibold px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-colors duration-200">
+              <span>מעבר לתזרים המלא</span>
+              <ArrowLeft className="w-4 h-4" />
+            </a>
+          </div>
         </header>
 
         <main className="grid grid-cols-12 gap-6">
           
           <div className="col-span-12 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
             <KpiCard title="רווח נקי (שנתי)" value={`₪${(data.kpi?.ytdNetProfit || 0).toLocaleString()}`} icon={<TrendingUp size={24} />} color="bg-green-500/20 text-green-400" />
-            <KpiCard title="עלות משכורות (חודשי)" value={`₪${(data.kpi?.monthlySalaries || 0).toLocaleString()}`} icon={<Users size={24} />} color="bg-amber-500/20 text-amber-400" />
-            <KpiCard title="החזרי הלוואות (חודשי)" value={`₪${(data.kpi?.monthlyLoans || 0).toLocaleString()}`} icon={<Landmark size={24} />} color="bg-teal-500/20 text-teal-400" />
-            <KpiCard title="תשלום לספקים (חודשי)" value={`₪${(data.kpi?.monthlySuppliers || 0).toLocaleString()}`} icon={<Truck size={24} />} color="bg-blue-500/20 text-blue-400" />
+            <KpiCard title="עלות משכורות (ממוצע חודשי)" value={`₪${(data.kpi?.monthlySalaries || 0).toLocaleString()}`} icon={<Users size={24} />} color="bg-amber-500/20 text-amber-400" />
+            <KpiCard title="החזרי הלוואות (ממוצע חודשי)" value={`₪${(data.kpi?.monthlyLoans || 0).toLocaleString()}`} icon={<Landmark size={24} />} color="bg-teal-500/20 text-teal-400" />
+            <KpiCard title="תשלום לספקים (ממוצע חודשי)" value={`₪${(data.kpi?.monthlySuppliers || 0).toLocaleString()}`} icon={<Truck size={24} />} color="bg-blue-500/20 text-blue-400" />
           </div>
 
           <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-6">
-            <ChartCard title="הכנסות מול הוצאות (6 חודשים)">
+            <ChartCard title={`הכנסות מול הוצאות - ${selectedYear}`}>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={data.charts.monthlyComparison} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
@@ -177,7 +235,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
             </ChartCard>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <ChartCard title="מגמת הוצאות לפי סוג">
+                 <ChartCard title={`מגמת הוצאות לפי סוג - ${selectedYear}`}>
                     <ResponsiveContainer width="100%" height={250}>
                         <AreaChart data={data.charts.expenseTrend} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
@@ -191,7 +249,7 @@ export default function DashboardPage() {
                         </AreaChart>
                     </ResponsiveContainer>
                  </ChartCard>
-                 <ChartCard title="הרכב הוצאות (חודש נוכחי)">
+                 <ChartCard title={`הרכב הוצאות שנתי - ${selectedYear}`}>
                     <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
                             <Pie data={data.charts.monthlyExpenseComposition} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={3}>
